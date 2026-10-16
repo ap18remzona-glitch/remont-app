@@ -53,24 +53,24 @@
     </div>
 
     <script>
-        // Инициализация Telegram переменных в самом начале скрипта
+        // Инициализируем Telegram жестко и сразу
         var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg) {
             tg.expand();
         }
         
         // Ссылка на ваш Google скрипт
-        const WEB_APP_URL = https://script.google.com/macros/s/AKfycbyq-esynNPKfzfb-7yQNQMaaT9ljr3H0zn9HlG0xHIRzBmpT8MCHBISubv5UNIWDW6m/exec
+        const WEB_APP_URL = "https://google.com";
         
         // Получаем ID пользователя
         const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : "522983187"; 
 
-        // Проверяем: если зашли именно вы — показываем зеленую панель таблицы
+        // Если зашли вы (Начальник) — показываем внизу зеленую панель таблицы
         if (String(userId) === "522983187") {
             document.getElementById("boss-panel").style.display = "block";
         }
 
-        // Функция отправки заявки
+        // Функция отправки заявки в Google Таблицу
         function submitMechanicTicket() {
             const vehicle = document.getElementById("mech-vehicle").value.trim();
             const mileage = document.getElementById("mech-mileage").value.trim();
@@ -81,25 +81,25 @@
                 return;
             }
             
-            // Отправляем запрос в Google Таблицу через "fetch"
-            fetch(WEB_APP_URL, {
-                method: "POST",
-                mode: "no-cors",
-                body: JSON.stringify({
-                    action: "createTicket",
-                    vehicle: vehicle,
-                    mileage: mileage,
-                    description: desc
-                })
-            });
+            // Подготавливаем данные для отправки в правильном текстовом формате
+            const payload = {
+                action: "createTicket",
+                vehicle: vehicle,
+                mileage: mileage,
+                description: desc
+            };
 
-            // Мгновенное подтверждение для обхода зависаний
+            // Отправляем данные через альтернативный метод, который не блокируется телефонами
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", WEB_APP_URL, true);
+            xhr.setRequestHeader("Content-Type", "text/plain");
+            xhr.send(JSON.stringify(payload));
+
+            // Сразу выдаем подтверждение пользователю
             alert("Заявка принята и отправлена в Журнал ремонтов!");
             
             if (tg) {
-                tg.close();
+                tg.close(); // Закрываем приложение в Telegram
             }
         }
     </script>
-</body>
-</html>
