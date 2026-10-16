@@ -116,7 +116,7 @@
             select.appendChild(option);
         });
 
-      // Функция отправки заявки
+     // Функция отправки заявки
         function submitMechanicTicket() {
             const vehicle = document.getElementById("mech-vehicle").value;
             const mileage = document.getElementById("mech-mileage").value.trim();
@@ -131,21 +131,27 @@
                 return;
             }
             
-            // Кодируем данные в стандартный формат интернет-формы
+            // Кодируем параметры в формат URL (x-www-form-urlencoded), который читает наш скрипт
             const formData = "vehicle=" + encodeURIComponent(vehicle) + 
                              "&mileage=" + encodeURIComponent(mileage) + 
                              "&description=" + encodeURIComponent(desc);
 
             try {
                 var xhr = new XMLHttpRequest();
+                // Отправляем асинхронный POST-запрос на ваш рабочий Google Скрипт
                 xhr.open("POST", WEB_APP_URL, true);
-                // Устанавливаем тип контента как у обычной интернет-формы
                 xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
                 xhr.send(formData);
-            } catch(e) {}
+            } catch(e) {
+                // Игнорируем внутренние сетевые ошибки WebView
+            }
 
+            // Мгновенное подтверждение для обхода зависаний на экране
             alert("Заявка принята и отправлена в Журнал ремонтов!");
-            if (tg) { tg.close(); }
+            
+            if (tg) { 
+                tg.close(); // Закрываем мини-приложение в Telegram
+            }
         }
     </script>
 </body>
