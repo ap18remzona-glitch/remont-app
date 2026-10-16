@@ -66,35 +66,33 @@
             loadCarsDynamic(); // Загружаем машины напрямую из таблицы
         }
 
-        // ДИНАМИЧЕСКАЯ ЗАГРУЗКА ИЗ СТРАНИЦЫ «БАЗА МАШИН»
+       // АВТОМАТИЧЕСКАЯ ЗАГРУЗКА ИЗ ВАШЕЙ ТАБЛИЦЫ «БАЗА МАШИН»
         function loadCarsDynamic() {
-            fetch(WEB_APP_URL + "?action=getInitData")
-                .then(r => r.json())
-                .then(data => {
+            fetch(WEB_APP_URL + "?action=getCars")
+                .then(r => r.text()) // Читаем как безопасный текст для обхода CORS
+                .then(textData => {
+                    const cars = JSON.parse(textData);
                     const select = document.getElementById("mech-vehicle");
                     select.innerHTML = '<option value="">-- Выберите машину --</option>';
-                    if (data.cars && data.cars.length > 0) {
-                        data.cars.forEach(c => {
+                    if (cars && cars.length > 0) {
+                        cars.forEach(c => {
                             let opt = document.createElement("option");
-                            // Отрезаем подсказку модели для записи чистого номера в таблицу
-                            let shortNumber = c.split(" (");
-                            opt.value = shortNumber[0];
-                            opt.textContent = c;
+                            let shortNumber = c.split(" ("); // Отрезаем модель для таблицы
+                            opt.value = shortNumber[0]; 
+                            opt.textContent = c; 
                             select.appendChild(opt);
                         });
                     }
                 }).catch(() => {
-                    // Резервный список если интернет на КПП временно завис
-                    const fallbackCars = ["AT 1683-5", "AP 6129-5", "AX 7671-5", "8314 MC-5", "BA 2721-5", "BA 6903-5"];
+                    // Резервный список если интернет на КПП отключился
+                    const fallback = ["AT 1683-5", "AP 6129-5", "AX 7671-5", "8314 MC-5", "BA 2721-5"];
                     const select = document.getElementById("mech-vehicle");
-                    select.innerHTML = '<option value="">-- Ошибка сети. Выберите машину --</option>';
-                    fallbackCars.forEach(c => {
-                        let opt = document.createElement("option");
-                        opt.value = c; opt.textContent = c; select.appendChild(opt);
+                    select.innerHTML = '<option value="">-- Ошибка сети. Выберите номер --</option>';
+                    fallback.forEach(c => {
+                        let opt = document.createElement("option"); opt.value = c; opt.textContent = c; select.appendChild(opt);
                     });
                 });
         }
-
         function submitMechanicTicket() {
             const vehicle = document.getElementById("mech-vehicle").value;
             const mileage = document.getElementById("mech-mileage").value.trim();
