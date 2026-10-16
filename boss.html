@@ -28,22 +28,26 @@
         var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg) { tg.expand(); }
         
+        // Ваша точная ссылка на рабочий Google Скрипт
         const WEB_APP_URL = "https://google.com";
         
-        // Запускаем загрузку данных при открытии страницы
+        // Принудительно запускаем чтение данных
         loadBossPanel();
 
         function loadBossPanel() {
             const container = document.getElementById("boss-tickets-container");
             
             fetch(WEB_APP_URL + "?action=getTickets")
-                .then(r => r.text()) // Читаем защищенный текстовый формат Google
-                .then(textData => {
+                .then(function(r) { return r.text(); })
+                .then(function(textData) {
                     var tickets = JSON.parse(textData);
                     container.innerHTML = "";
-                    if(!tickets || tickets.length === 0) { container.innerHTML = "<p style='text-align:center;'>Активных заявок в таблице пока нет.</p>"; return; }
+                    if(!tickets || tickets.length === 0) { 
+                        container.innerHTML = "<p style='text-align:center;'>Активных заявок в таблице пока нет.</p>"; 
+                        return; 
+                    }
                     
-                    tickets.forEach(t => {
+                    tickets.forEach(function(t) {
                         let card = document.createElement("div");
                         card.className = "card";
                         card.innerHTML = 
@@ -76,7 +80,7 @@
                         ;
                         container.appendChild(card);
                     });
-                }).catch(() => {
+                }).catch(function(err) {
                     container.innerHTML = "<p style='text-align:center; color:red;'>Ошибка чтения базы данных.</p>";
                 });
         }
