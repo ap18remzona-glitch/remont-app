@@ -11,7 +11,7 @@
         h2 { margin-top: 0; font-size: 20px; color: var(--tg-theme-button-color, #007aff); text-align: center; }
         .form-group { margin-bottom: 14px; }
         label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
-        textarea, input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; background: #fff; box-sizing: border-box; font-size: 16px; color: #000; }
+        textarea, input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; background: #fff; box-sizing: border-box; font-size: 16px; color: #000; }
         button { width: 100%; padding: 14px; background-color: var(--tg-theme-button-color, #007aff); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         button:active { opacity: 0.8; }
         .boss-btn { background-color: #34c759; }
@@ -25,8 +25,10 @@
             <h2>🚨 Создать заявку на ремонт</h2>
             
             <div class="form-group">
-                <label>Гос. номер машины</label>
-                <input type="text" id="mech-vehicle" placeholder="Например: А 123 АА 777">
+                <label>Выберите машину (из базы)</label>
+                <select id="mech-vehicle">
+                    <option value="">-- Загрузка списка машин... --</option>
+                </select>
             </div>
             
             <div class="form-group">
@@ -47,63 +49,67 @@
     <div id="boss-panel" style="display: none;">
         <div class="card" style="border: 2px solid #34c759;">
             <h3 style="margin-top:0; color:#34c759; text-align: center;">Панель Управления</h3>
-            <p style="font-size: 14px; text-align: center;">Вы авторизованы как Начальник. Нажмите кнопку ниже для перехода в основной журнал:</p>
+            <p style="font-size: 14px; text-align: center;">Вы вошли как Начальник мастерской.</p>
             <button class="boss-btn" onclick="window.open('https://google.com', '_blank')">📊 Открыть Журнал Ремонтов</button>
         </div>
     </div>
 
     <script>
-        // Инициализируем Telegram жестко и сразу
         var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-        if (tg) {
-            tg.expand();
-        }
+        if (tg) { tg.expand(); }
         
-        // Ссылка на ваш Google скрипт
         const WEB_APP_URL = "https://google.com";
-        
-        // Получаем ID пользователя
         const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : "522983187"; 
 
-        // Если зашли вы (Начальник) — показываем внизу зеленую панель таблицы
         if (String(userId) === "522983187") {
             document.getElementById("boss-panel").style.display = "block";
         }
 
-       
-       // Функция отправки заявки
+        // АВТОМАТИЧЕСКАЯ ЗАГРУЗКА МАШИН ПРИ СТАРТЕ
+        fetch(WEB_APP_URL)
+            .then(response => response.json())
+            .then(cars => {
+                const select = document.getElementById("mech-vehicle");
+                select.innerHTML = '<option value="">-- Выберите из списка --</option>';
+                cars.forEach(car => {
+                    // Отрезаем название модели для записи в таблицу (оставляем только номер до скобки)
+                    let shortNumber = car.split(" (")[0];
+                    let option = document.createElement("option");
+                    option.value = shortNumber;
+                    option.textContent = car;
+                    select.appendChild(option);
+                });
+            }).catch(err => {
+                document.getElementById("mech-vehicle").innerHTML = '<option value="">Ошибка загрузки базы машин</option>';
+            });
+
+        // ФУНКЦИЯ ОТПРАВКИ
         function submitMechanicTicket() {
-            const vehicle = document.getElementById("mech-vehicle").value.trim();
+            const vehicle = document.getElementById("mech-vehicle").value;
             const mileage = document.getElementById("mech-mileage").value.trim();
             const desc = document.getElementById("mech-desc").value.trim();
             
-            if (!vehicle || !desc) {
-                alert("Пожалуйста, заполните Гос. номер и Неисправность!");
+            if (!vehicle) {
+                alert("Пожалуйста, выберите машину из списка!");
+                return;
+            }
+            if (!desc) {
+                alert("Пожалуйста, заполните поле неисправности!");
                 return;
             }
             
-            const payload = {
-                action: "createTicket",
-                vehicle: vehicle,
-                mileage: mileage,
-                description: desc
-            };
+            const payload = { action: "createTicket", vehicle: vehicle, mileage: mileage, description: desc };
 
-            // Отправляем данные в фоновом режиме, не дожидаясь ответа
             try {
                 var xhr = new XMLHttpRequest();
                 xhr.open("POST", WEB_APP_URL, true);
                 xhr.setRequestHeader("Content-Type", "text/plain");
                 xhr.send(JSON.stringify(payload));
-            } catch(e) {
-                // Игнорируем сетевые ошибки браузера
-            }
+            } catch(e) {}
 
-            // Мгновенно выдаем окно успеха сотруднику на экране
             alert("Заявка принята и отправлена в Журнал ремонтов!");
-            
-            if (tg) {
-                tg.close(); // Закрываем приложение
-            }
+            if (tg) { tg.close(); }
         }
     </script>
+</body>
+</html>
