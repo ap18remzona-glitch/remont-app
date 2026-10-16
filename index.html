@@ -26,7 +26,9 @@
             <h2>🚨 Создать заявку на ремонт</h2>
             <div class="form-group">
                 <label>Выберите машину (Автобаза)</label>
-                <select id="mech-vehicle"></select>
+                <select id="mech-vehicle">
+                    <option value="">-- Загрузка машин из вашей базы... --</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Текущий пробег</label>
@@ -52,7 +54,7 @@
         var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg) { tg.expand(); }
        
-        const WEB_APP_URL = "https://google.com";
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyq-esynNPKfzfb-7yQNQMaaT9ljr3H0zn9HlG0xHIRzBmpT8MCHBISubv5UNIWDW6m/exec";
         const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : "522983187";
 
         // ЗАПУСК И СОРТИРОВКА ПРАВ
@@ -61,24 +63,43 @@
             loadBossPanel();
         } else {
             document.getElementById("screen-mechanic").classList.remove("hidden");
-            loadCarsDropdown();
+            loadCarsDynamic(); // Загружаем машины напрямую из таблицы
         }
 
-        function loadCarsDropdown() {
-            const cars = ["AT 1683-5", "AP 6129-5", "AX 7671-5", "8314 MC-5", "BA 2721-5", "AC 1662-5", "BA 2724-5", "AX 7623-5", "AC 1296-5", "AC 4218-5", "AC 1213-5", "AX 7624-5", "BA 2722-5", "BA 8695-5", "9669 KX-5", "BA 0686-5", "AP 6172-5", "BB 5320-5", "BB 5322-5", "BB 5342-5", "BB 5352-5", "BB 5363-5", "AX 7632-5", "AX 7672-5", "AT 1632-5", "AX 7625-5", "BA 6904-5", "AH 3584-5", "AT 7020-5", "AT 0868-5", "BA 2723-5", "BA 6903-5", "AP 6173-5", "BB 0390-5", "BB 0391-5", "AT 1625-5"];
-            const select = document.getElementById("mech-vehicle");
-            select.innerHTML = '<option value="">-- Выберите машину --</option>';
-            cars.forEach(c => {
-                let opt = document.createElement("option");
-                opt.value = c; opt.textContent = c; select.appendChild(opt);
-            });
+        // ДИНАМИЧЕСКАЯ ЗАГРУЗКА ИЗ СТРАНИЦЫ «БАЗА МАШИН»
+        function loadCarsDynamic() {
+            fetch(WEB_APP_URL + "?action=getInitData")
+                .then(r => r.json())
+                .then(data => {
+                    const select = document.getElementById("mech-vehicle");
+                    select.innerHTML = '<option value="">-- Выберите машину --</option>';
+                    if (data.cars && data.cars.length > 0) {
+                        data.cars.forEach(c => {
+                            let opt = document.createElement("option");
+                            // Отрезаем подсказку модели для записи чистого номера в таблицу
+                            let shortNumber = c.split(" (");
+                            opt.value = shortNumber[0];
+                            opt.textContent = c;
+                            select.appendChild(opt);
+                        });
+                    }
+                }).catch(() => {
+                    // Резервный список если интернет на КПП временно завис
+                    const fallbackCars = ["AT 1683-5", "AP 6129-5", "AX 7671-5", "8314 MC-5", "BA 2721-5", "BA 6903-5"];
+                    const select = document.getElementById("mech-vehicle");
+                    select.innerHTML = '<option value="">-- Ошибка сети. Выберите машину --</option>';
+                    fallbackCars.forEach(c => {
+                        let opt = document.createElement("option");
+                        opt.value = c; opt.textContent = c; select.appendChild(opt);
+                    });
+                });
         }
 
         function submitMechanicTicket() {
             const vehicle = document.getElementById("mech-vehicle").value;
             const mileage = document.getElementById("mech-mileage").value.trim();
             const desc = document.getElementById("mech-desc").value.trim();
-            if (!vehicle || !desc) { alert("Заполните поля!"); return; }
+            if (!vehicle || !desc) { alert("Заполните машину и неисправность!"); return; }
            
             const formData = "action=createTicket&vehicle=" + encodeURIComponent(vehicle) + "&mileage=" + encodeURIComponent(mileage) + "&description=" + encodeURIComponent(desc);
             sendPost(formData, "Заявка добавлена в Журнал и отправлена в канал!");
@@ -142,13 +163,4 @@
 
         function sendPost(formData, successMessage) {
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", WEB_APP_URL, true);
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-            xhr.send(formData);
-            alert(successMessage);
-            if (tg) { tg.close(); }
-        }
-    </script>
-</body>
-</html>
 Serega
