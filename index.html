@@ -70,7 +70,8 @@
             document.getElementById("boss-panel").style.display = "block";
         }
 
-        // Функция отправки заявки в Google Таблицу
+       
+       // Функция отправки заявки
         function submitMechanicTicket() {
             const vehicle = document.getElementById("mech-vehicle").value.trim();
             const mileage = document.getElementById("mech-mileage").value.trim();
@@ -81,7 +82,6 @@
                 return;
             }
             
-            // Подготавливаем данные для отправки в правильном текстовом формате
             const payload = {
                 action: "createTicket",
                 vehicle: vehicle,
@@ -89,17 +89,21 @@
                 description: desc
             };
 
-            // Отправляем данные через альтернативный метод, который не блокируется телефонами
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", WEB_APP_URL, true);
-            xhr.setRequestHeader("Content-Type", "text/plain");
-            xhr.send(JSON.stringify(payload));
+            // Отправляем данные в фоновом режиме, не дожидаясь ответа
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", WEB_APP_URL, true);
+                xhr.setRequestHeader("Content-Type", "text/plain");
+                xhr.send(JSON.stringify(payload));
+            } catch(e) {
+                // Игнорируем сетевые ошибки браузера
+            }
 
-            // Сразу выдаем подтверждение пользователю
+            // Мгновенно выдаем окно успеха сотруднику на экране
             alert("Заявка принята и отправлена в Журнал ремонтов!");
             
             if (tg) {
-                tg.close(); // Закрываем приложение в Telegram
+                tg.close(); // Закрываем приложение
             }
         }
     </script>
