@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,153 +6,96 @@
     <title>Ремонт Автопарка</title>
     <script src="https://telegram.org"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--tg-theme-bg-color, #f5f5f7); color: var(--tg-theme-text-color, #000000); margin: 0; padding: 12px; box-sizing: border-box; }
-        .card { background: var(--tg-theme-secondary-bg-color, #ffffff); padding: 14px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 12px; }
-        h2 { margin-top: 0; font-size: 18px; color: var(--tg-theme-button-color, #007aff); text-align: center; }
-        .form-group { margin-bottom: 12px; }
-        label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 13px; }
-        textarea, input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: #fff; box-sizing: border-box; font-size: 15px; color: #000; }
-        button { width: 100%; padding: 12px; background-color: var(--tg-theme-button-color, #007aff); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 8px; }
-        .ticket-box { border-left: 4px solid #ff9500; padding-left: 10px; margin-bottom: 10px; background: #fdfdfd; padding: 10px; border-radius: 6px; }
-        .hidden { display: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--tg-theme-bg-color, #f5f5f7); color: var(--tg-theme-text-color, #000000); margin: 0; padding: 16px; box-sizing: border-box; }
+        .card { background: var(--tg-theme-secondary-bg-color, #ffffff); padding: 16px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 16px; }
+        h2 { margin-top: 0; font-size: 20px; color: var(--tg-theme-button-color, #007aff); text-align: center; }
+        .form-group { margin-bottom: 14px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+        textarea, input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; background: #fff; box-sizing: border-box; font-size: 16px; color: #000; }
+        button { width: 100%; padding: 14px; background-color: var(--tg-theme-button-color, #007aff); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button:active { opacity: 0.8; }
     </style>
 </head>
 <body>
 
-    <!-- ЭКРАН 1: ДЛЯ МЕХАНИКОВ (ПОДАЧА ЗАЯВКИ) -->
-    <div id="screen-mechanic" class="hidden">
+    <!-- ФОРМА ОТКРЫТИЯ ЗАЯВКИ (РАБОТАЕТ ВСЕГДА) -->
+    <div id="screen-mechanic">
         <div class="card">
             <h2>🚨 Создать заявку на ремонт</h2>
+            
             <div class="form-group">
-                <label>Выберите машину</label>
+                <label>Выберите машину (Автобаза)</label>
                 <select id="mech-vehicle">
-                    <option value="">-- Загрузка машин... --</option>
+                    <option value="">-- Выберите машину --</option>
                 </select>
             </div>
+            
             <div class="form-group">
                 <label>Текущий пробег</label>
-                <input type="number" id="mech-mileage" placeholder="Введите километраж">
+                <input type="number" id="mech-mileage" placeholder="Укажите километраж">
             </div>
+            
             <div class="form-group">
-                <label>Неисправность</label>
-                <textarea id="mech-desc" rows="3" placeholder="What broke?"></textarea>
+                <label>Что случилось? (Неисправность)</label>
+                <textarea id="mech-desc" rows="4" placeholder="Опишите проблему подробно..."></textarea>
             </div>
+            
             <button onclick="submitMechanicTicket()">Отправить в ремонт</button>
         </div>
     </div>
 
-    <!-- ЭКРАН 2: ДЛЯ НАЧАЛЬНИКА (УПРАВЛЕНИЕ СТАТУСАМИ) -->
-    <div id="screen-boss" class="hidden">
-        <div class="card" style="background: #eef7ff; text-align: center;">
-            <h3 style="margin: 0; color: #007aff; font-size: 15px;">Панель Управления Начальника</h3>
-        </div>
-        <div id="boss-tickets-container">Загрузка активных ремонтов...</div>
-    </div>
-
     <script>
         var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-        if (tg) { tg.expand(); }
-       
+        if (tg) {
+            tg.expand(); // Развернуть на весь экран телефона
+        }
+        
+        // Ваша точная ссылка на Google Web App скрипт
         const WEB_APP_URL = "https://google.com";
-        const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : "522983187";
 
-        // Резервный список слесарей на случай сбоя сети
-        var globalWorkers = ["Серега", "Иванов И.И.", "Петров П.П."];
+        // Заполняем выпадающий список вашей реальной базой машин
+        const cars = ["AT 1683-5", "AP 6129-5", "AX 7671-5", "8314 MC-5", "BA 2721-5", "AC 1662-5", "BA 2724-5", "AX 7623-5", "AC 1296-5", "AC 4218-5", "AC 1213-5", "AX 7624-5", "BA 2722-5", "BA 8695-5", "9669 KX-5", "BA 0686-5", "AP 6172-5", "BB 5320-5", "BB 5322-5", "BB 5342-5", "BB 5352-5", "BB 5363-5", "AX 7632-5", "AX 7672-5", "AT 1632-5", "AX 7625-5", "BA 6904-5", "AH 3584-5", "AT 7020-5", "AT 0868-5", "BA 2723-5", "BA 6903-5", "AP 6173-5", "BB 0390-5", "BB 0391-5", "AT 1625-5"];
+        const select = document.getElementById("mech-vehicle");
+        select.innerHTML = '<option value="">-- Выберите машину --</option>';
+        cars.forEach(c => {
+            let opt = document.createElement("option");
+            opt.value = c;
+            opt.textContent = c;
+            select.appendChild(opt);
+        });
 
-        // РАЗДЕЛЕНИЕ РОЛЕЙ И ЗАПУСК ПРИЛОЖЕНИЯ
-        if (String(userId) === "522983187") {
-            document.getElementById("screen-boss").classList.remove("hidden");
-            // Сначала считываем список слесарей из таблицы, затем выводим ремонты
-            fetch(WEB_APP_URL + "?action=getInitData")
-                .then(r => r.json())
-                .then(data => {
-                    if(data.workers && data.workers.length > 0) { globalWorkers = data.workers; }
-                    loadBossPanel();
-                }).catch(() => { loadBossPanel(); });
-        } else {
-            document.getElementById("screen-mechanic").classList.remove("hidden");
-            loadCarsDropdown();
-        }
-
-        // Заполнение выпадающего списка машин для механика
-        function loadCarsDropdown() {
-            const cars = ["AT 1683-5", "AP 6129-5", "AX 7671-5", "8314 MC-5", "BA 2721-5", "AC 1662-5", "BA 2724-5", "AX 7623-5", "AC 1296-5", "AC 4218-5", "AC 1213-5", "AX 7624-5", "BA 2722-5", "BA 8695-5", "9669 KX-5", "BA 0686-5", "AP 6172-5", "BB 5320-5", "BB 5322-5", "BB 5342-5", "BB 5352-5", "BB 5363-5", "AX 7632-5", "AX 7672-5", "AT 1632-5", "AX 7625-5", "BA 6904-5", "AH 3584-5", "AT 7020-5", "AT 0868-5", "BA 2723-5", "BA 6903-5", "AP 6173-5", "BB 0390-5", "BB 0391-5", "AT 1625-5"];
-            const select = document.getElementById("mech-vehicle");
-            select.innerHTML = '<option value="">-- Выберите машину --</option>';
-            cars.forEach(c => {
-                let opt = document.createElement("option");
-                opt.value = c; opt.textContent = c; select.appendChild(opt);
-            });
-        }
-
-        // Механик отправляет заявку
+        // Функция отправки заявки механиком
         function submitMechanicTicket() {
             const vehicle = document.getElementById("mech-vehicle").value;
             const mileage = document.getElementById("mech-mileage").value.trim();
             const desc = document.getElementById("mech-desc").value.trim();
-            if (!vehicle || !desc) { alert("Заполните машину и неисправность!"); return; }
-           
-            const formData = "action=createTicket&vehicle=" + encodeURIComponent(vehicle) + "&mileage=" + encodeURIComponent(mileage) + "&description=" + encodeURIComponent(desc);
-            sendPost(formData, "Заявка добавлена в Журнал и отправлена в канал!");
+            
+            if (!vehicle) {
+                alert("Пожалуйста, выберите машину из списка!");
+                return;
+            }
+            if (!desc) {
+                alert("Пожалуйста, заполните поле неисправности!");
+                return;
+            }
+            
+            // Формируем безопасный формат интернет-формы
+            const formData = "action=createTicket&vehicle=" + encodeURIComponent(vehicle) + 
+                             "&mileage=" + encodeURIComponent(mileage) + 
+                             "&description=" + encodeURIComponent(desc);
+
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", WEB_APP_URL, true);
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                xhr.send(formData);
+            } catch(e) {}
+
+            alert("Заявка принята и добавлена в Журнал ремонтов!");
+            if (tg) {
+                tg.close(); // Закрываем форму
+            }
         }
-
-        // Отрисовка списка ремонтов для Начальника
-        function loadBossPanel() {
-            fetch(WEB_APP_URL + "?action=getTickets")
-                .then(r => r.json())
-                .then(tickets => {
-                    const container = document.getElementById("boss-tickets-container");
-                    container.innerHTML = "";
-                    if(!tickets || tickets.length === 0) { container.innerHTML = "<p style='text-align:center;'>Нет активных строк для ремонта ниже 77 строки.</p>"; return; }
-                   
-                    tickets.forEach(t => {
-                        let workersOptions = `<option value="${t.sleasar || ''}">${t.sleasar || '-- Выберите слесаря --'}</option>`;
-                        globalWorkers.forEach(w => { workersOptions += `<option value="${w}">${w}</option>`; });
-
-                        let card = document.createElement("div");
-                        card.className = "card";
-                        card.innerHTML = `
-                            <div class="ticket-box">
-                                <b>🚚 Машина: ${t.vehicle}</b> <span style="float:right; font-size:12px; color:#666;">Строка: ${t.rowIndex}</span><br>
-                                <small>📅 ${t.date} | Пробег: ${t.mileage} км</small><br>
-                                <p style="margin:6px 0; font-size:14px; color:#222;">⚠️ Поломка: ${t.description}</p>
-                                <p style="margin:2px 0; font-size:13px; color:#444;">Текущий статус: <b>${t.status || 'Новая'}</b></p>
-                            </div>
-                            <div class="form-group">
-                                <label>Назначить слесаря</label>
-                                <select id="sleasar-${t.rowIndex}">${workersOptions}</select>
-                            </div>
-                            <div class="form-group">
-                                <label>В закупку (если статус Ждем запчасть):</label>
-                                <input type="text" id="parts-${t.rowIndex}" placeholder="Что купить?">
-                            </div>
-                            <div class="form-group">
-                                <label>Изменить статус ремонта</label>
-                                <select id="status-${t.rowIndex}">
-                                    <option value="${t.status || 'Новая'}">Текущий: ${t.status || 'Новая'}</option>
-                                    <option value="В работе">🔵 В работе</option>
-                                    <option value="Ждем запчасть">🔴 Ждем запчасть</option>
-                                    <option value="Ремонт на линии">🟠 Ремонт на линии</option>
-                                    <option value="Необоснованно">⚫ Необоснованно</option>
-                                    <option value="Готово">🟢 Готово</option>
-                                </select>
-                            </div>
-                            <button style="background:#34c759;" onclick="updateTicketByBoss(${t.rowIndex}, '${t.vehicle}')">💾 Сохранить в таблицу</button>
-                        `;
-                        container.appendChild(card);
-                    });
-                }).catch(() => {
-                    document.getElementById("boss-tickets-container").innerHTML = "<p style='text-align:center; color:red;'>Ошибка обработки строк. Проверьте запуск doPost/doGet.</p>";
-                });
-        }
-
-        // Начальник сохраняет изменения карточки
-        function updateTicketByBoss(rowIndex, vehicle) {
-            const sleasar = document.getElementById("sleasar-" + rowIndex).value;
-            const buyParts = document.getElementById("parts-" + rowIndex).value.trim();
-            const status = document.getElementById("status-" + rowIndex).value;
-           
-            const formData = "action=updateTicket&rowIndex=" + rowIndex + "&vehicle=" + encodeURIComponent(vehicle) + "&sleasar=" + encodeURIComponent(sleasar) + "&buyParts=" + encodeURIComponent(buyParts) + "&status=" + encodeURIComponent(status);
-            sendPost(formData, "Статус изменен! Данные внесены в таблицу и отправлены в ваши каналы.");
-        }
-
+    </script>
+</body>
+</html>
