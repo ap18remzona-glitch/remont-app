@@ -1,143 +1,159 @@
 
-const BOT_TOKEN = "8596874877:AAEDMc7wb1gCL591WtNEffnnOEXJur4VY70";
-const CHAT_BOSS = "522983187";
-const CHAN_REPAIR = "-1004429580412";
-const CHAN_PARTS = "-1004327403923"; 
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ремонт Автопарка</title>
+    <script src="https://telegram.org"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--tg-theme-bg-color, #f5f5f7); color: var(--tg-theme-text-color, #000000); margin: 0; padding: 12px; box-sizing: border-box; }
+        .card { background: var(--tg-theme-secondary-bg-color, #ffffff); padding: 14px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 12px; }
+        h2 { margin-top: 0; font-size: 18px; color: var(--tg-theme-button-color, #007aff); text-align: center; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 13px; }
+        textarea, input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: #fff; box-sizing: border-box; font-size: 15px; color: #000; }
+        button { width: 100%; padding: 12px; background-color: var(--tg-theme-button-color, #007aff); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+        .ticket-box { border-left: 4px solid #ff9500; padding-left: 10px; margin-bottom: 10px; background: #fdfdfd; padding: 10px; border-radius: 6px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
 
-// 1. ОТДАЧА ДАННЫХ В ПРИЛОЖЕНИЕ (Сняли все ошибки чтения колонок)
-function doGet(e) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const action = e.parameter.action;
- 
-  // Отдаем полный список машин и слесарей для приложения
-  if (action === "getInitData") {
-    // Читаем машины
-    const sheetCars = ss.getSheetByName("База машин");
-    const carsData = sheetCars.getDataRange().getValues();
-    const carsList = [];
-    for (let i = 1; i < carsData.length; i++) {
-      if (carsData[i][1]) { // Колонка B - Номер
-        carsList.push(carsData[i][1] + " (" + (carsData[i][2] || "") + ")");
-      }
-    }
-   
-    // Читаем слесарей со вкладки Сотрудники
-    const sheetUsers = ss.getSheetByName("Сотрудники");
-    const usersData = sheetUsers.getDataRange().getValues();
-    const workersList = [];
-    for (let i = 1; i < usersData.length; i++) {
-      if (usersData[i][1]) { workersList.push(usersData[i][1]); } // Колонка B - ФИО
-    }
-   
-    return createJsonResponse({ cars: carsList, workers: workersList });
-  }
- 
-  // Отдаем активные заявки для Начальника (считываем ячейки безопасно)
-  if (action === "getTickets") {
-    const sheetRepairs = ss.getSheetByName("Журнал ремонтов");
-    const data = sheetRepairs.getDataRange().getValues();
-    const tickets = [];
-   
-    // Считываем последние 25 строк
-    const startRow = Math.max(77, data.length - 25);
-    for (let i = data.length - 1; i >= startRow; i--) {
-      if (!data[i] || data[i][1] === "") continue; // Пропуск если пустой госномер
-     
-      tickets.push({
-        rowIndex: i + 1,
-        date: data[i][0] ? String(data[i][0]) : "",        // A - Дата
-        vehicle: data[i][1] ? String(data[i][1]) : "",     // B - Номер
-        mileage: data[i][2] ? String(data[i][2]) : "",     // C - Пробег
-        description: data[i][3] ? String(data[i][3]) : "", // D - Поломка
-        sleasar: data[i][4] ? String(data[i][4]) : "",     // E - Слесарь
-        status: data[i][9] ? String(data[i][9]) : "Новая"  // J - Статус (10-я колонка, индекс 9)
-      });
-    }
-    return createJsonResponse(tickets);
-  }
- 
-  return ContentService.createTextOutput("Сервер активен").setMimeType(ContentService.MimeType.TEXT);
-}
+    <!-- ЭКРАН 1: ДЛЯ МЕХАНИКОВ (ПОДАЧА ЗАЯВКИ) -->
+    <div id="screen-mechanic" class="hidden">
+        <div class="card">
+            <h2>🚨 Создать заявку на ремонт</h2>
+            <div class="form-group">
+                <label>Выберите машину</label>
+                <select id="mech-vehicle">
+                    <option value="">-- Загрузка машин... --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Текущий пробег</label>
+                <input type="number" id="mech-mileage" placeholder="Введите километраж">
+            </div>
+            <div class="form-group">
+                <label>Неисправность</label>
+                <textarea id="mech-desc" rows="3" placeholder="What broke?"></textarea>
+            </div>
+            <button onclick="submitMechanicTicket()">Отправить в ремонт</button>
+        </div>
+    </div>
 
-// 2. ПРИЕМ КОМАНД ИЗ ПРИЛОЖЕНИЯ TELEGRAM
-function doPost(e) {
-  try {
-    var vehicle = e.parameter.vehicle;
-    var mileage = e.parameter.mileage || "";
-    var description = e.parameter.description;
-    var action = e.parameter.action;
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetRepairs = ss.getSheetByName("Журнал ремонтов");
-    const currentDate = Utilities.formatDate(new Date(), "GMT+3", "dd.MM.yyyy HH:mm");
-   
-    // А: ЗАПИСЬ ЗАЯВКИ ОТ МЕХАНИКА
-    if (action === "createTicket") {
-      let nextRow = 77;
-      const maxRows = sheetRepairs.getLastRow() + 30;
-      for (let r = 77; r <= maxRows; r++) {
-        if (sheetRepairs.getRange(r, 2).getValue() === "") { nextRow = r; break; }
-      }
-     
-      sheetRepairs.getRange(nextRow, 1, 1, 10).clearDataValidations();
-      sheetRepairs.getRange(nextRow, 1).setValue(currentDate);
-      sheetRepairs.getRange(nextRow, 2).setValue(String(vehicle));
-      sheetRepairs.getRange(nextRow, 3).setValue(String(mileage));
-      sheetRepairs.getRange(nextRow, 4).setValue(String(description));
-      sheetRepairs.getRange(nextRow, 10).setValue("Новая");
-     
-      var reportRepair = "🛠 *НОВАЯ ЗАЯВКА НА РЕМОНТ*\n\n" +
-                         "📅 *Дата:* " + currentDate + "\n" +
-                         "🚚 *Транспорт:* " + vehicle + "\n" +
-                         "📊 *Пробег:* " + mileage + " км\n" +
-                         "🔍 *Неисправность:* " + description + "\n" +
-                         "📌 *Статус:* 🟡 Новая";
-      sendTelegramMessage(CHAN_REPAIR, reportRepair);
-      return createJsonResponse({ success: true });
-    }
-   
-    // Б: ИЗМЕНЕНИЕ СТАТУСА НАЧАЛЬНИКОМ
-    if (action === "updateTicket") {
-      var row = parseInt(e.parameter.rowIndex);
-      var status = e.parameter.status;
-      var sleasar = e.parameter.sleasar;
-      var buyParts = e.parameter.buyParts || "";
-     
-      if (status) sheetRepairs.getRange(row, 10).setValue(status);
-      if (sleasar) sheetRepairs.getRange(row, 5).setValue(sleasar);
-      if (buyParts) sheetRepairs.getRange(row, 8).setValue(buyParts);
-     
-      var currentVehicle = sheetRepairs.getRange(row, 2).getValue();
-      var currentDesc = sheetRepairs.getRange(row, 4).getValue();
-     
-      if (status === "Ждем запчасть") {
-        var reportParts = "🛒 *ЗАЯВКА НА ЗАПЧАСТИ*\n\n" +
-                          "🚚 *Транспорт:* " + currentVehicle + "\n" +
-                          "🔍 *Поломка:* " + currentDesc + "\n" +
-                          "🔧 *Что требуется купить:* " + (buyParts || "Не указано");
-        sendTelegramMessage(CHAN_PARTS, reportParts);
-      }
-     
-      var updateMsg = "🔄 *ОБНОВЛЕНИЕ СТАТУСА РЕМОНТА*\n\n" +
-                      "🚚 *Транспорт:* " + currentVehicle + "\n" +
-                      "👨‍🔧 *Слесарь:* " + (sleasar || "Не назначен") + "\n" +
-                      "📌 *Новый статус:* " + status;
-      sendTelegramMessage(CHAN_REPAIR, updateMsg);
-     
-      return createJsonResponse({ success: true });
-    }
-  } catch(err) {
-    return createJsonResponse({ success: false, error: err.toString() });
-  }
-}
+    <!-- ЭКРАН 2: ДЛЯ НАЧАЛЬНИКА (УПРАВЛЕНИЕ СТАТУСАМИ) -->
+    <div id="screen-boss" class="hidden">
+        <div class="card" style="background: #eef7ff; text-align: center;">
+            <h3 style="margin: 0; color: #007aff; font-size: 15px;">Панель Управления Начальника</h3>
+        </div>
+        <div id="boss-tickets-container">Загрузка активных ремонтов...</div>
+    </div>
 
-function sendTelegramMessage(chatId, text) {
-  const url = "https://telegram.org" + BOT_TOKEN + "/sendMessage";
-  const payload = { "chat_id": chatId, "text": text, "parse_mode": "Markdown" };
-  UrlFetchApp.fetch(url, { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload) });
-}
+    <script>
+        var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        if (tg) { tg.expand(); }
+       
+        const WEB_APP_URL = "https://google.com";
+        const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : "522983187";
 
-function createJsonResponse(data) {
-  const output = ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
-  return output.addHeader("Access-Control-Allow-Origin", "*");
-}
-Serega
+        // Резервный список слесарей на случай сбоя сети
+        var globalWorkers = ["Серега", "Иванов И.И.", "Петров П.П."];
+
+        // РАЗДЕЛЕНИЕ РОЛЕЙ И ЗАПУСК ПРИЛОЖЕНИЯ
+        if (String(userId) === "522983187") {
+            document.getElementById("screen-boss").classList.remove("hidden");
+            // Сначала считываем список слесарей из таблицы, затем выводим ремонты
+            fetch(WEB_APP_URL + "?action=getInitData")
+                .then(r => r.json())
+                .then(data => {
+                    if(data.workers && data.workers.length > 0) { globalWorkers = data.workers; }
+                    loadBossPanel();
+                }).catch(() => { loadBossPanel(); });
+        } else {
+            document.getElementById("screen-mechanic").classList.remove("hidden");
+            loadCarsDropdown();
+        }
+
+        // Заполнение выпадающего списка машин для механика
+        function loadCarsDropdown() {
+            const cars = ["AT 1683-5", "AP 6129-5", "AX 7671-5", "8314 MC-5", "BA 2721-5", "AC 1662-5", "BA 2724-5", "AX 7623-5", "AC 1296-5", "AC 4218-5", "AC 1213-5", "AX 7624-5", "BA 2722-5", "BA 8695-5", "9669 KX-5", "BA 0686-5", "AP 6172-5", "BB 5320-5", "BB 5322-5", "BB 5342-5", "BB 5352-5", "BB 5363-5", "AX 7632-5", "AX 7672-5", "AT 1632-5", "AX 7625-5", "BA 6904-5", "AH 3584-5", "AT 7020-5", "AT 0868-5", "BA 2723-5", "BA 6903-5", "AP 6173-5", "BB 0390-5", "BB 0391-5", "AT 1625-5"];
+            const select = document.getElementById("mech-vehicle");
+            select.innerHTML = '<option value="">-- Выберите машину --</option>';
+            cars.forEach(c => {
+                let opt = document.createElement("option");
+                opt.value = c; opt.textContent = c; select.appendChild(opt);
+            });
+        }
+
+        // Механик отправляет заявку
+        function submitMechanicTicket() {
+            const vehicle = document.getElementById("mech-vehicle").value;
+            const mileage = document.getElementById("mech-mileage").value.trim();
+            const desc = document.getElementById("mech-desc").value.trim();
+            if (!vehicle || !desc) { alert("Заполните машину и неисправность!"); return; }
+           
+            const formData = "action=createTicket&vehicle=" + encodeURIComponent(vehicle) + "&mileage=" + encodeURIComponent(mileage) + "&description=" + encodeURIComponent(desc);
+            sendPost(formData, "Заявка добавлена в Журнал и отправлена в канал!");
+        }
+
+        // Отрисовка списка ремонтов для Начальника
+        function loadBossPanel() {
+            fetch(WEB_APP_URL + "?action=getTickets")
+                .then(r => r.json())
+                .then(tickets => {
+                    const container = document.getElementById("boss-tickets-container");
+                    container.innerHTML = "";
+                    if(!tickets || tickets.length === 0) { container.innerHTML = "<p style='text-align:center;'>Нет активных строк для ремонта ниже 77 строки.</p>"; return; }
+                   
+                    tickets.forEach(t => {
+                        let workersOptions = `<option value="${t.sleasar || ''}">${t.sleasar || '-- Выберите слесаря --'}</option>`;
+                        globalWorkers.forEach(w => { workersOptions += `<option value="${w}">${w}</option>`; });
+
+                        let card = document.createElement("div");
+                        card.className = "card";
+                        card.innerHTML = `
+                            <div class="ticket-box">
+                                <b>🚚 Машина: ${t.vehicle}</b> <span style="float:right; font-size:12px; color:#666;">Строка: ${t.rowIndex}</span><br>
+                                <small>📅 ${t.date} | Пробег: ${t.mileage} км</small><br>
+                                <p style="margin:6px 0; font-size:14px; color:#222;">⚠️ Поломка: ${t.description}</p>
+                                <p style="margin:2px 0; font-size:13px; color:#444;">Текущий статус: <b>${t.status || 'Новая'}</b></p>
+                            </div>
+                            <div class="form-group">
+                                <label>Назначить слесаря</label>
+                                <select id="sleasar-${t.rowIndex}">${workersOptions}</select>
+                            </div>
+                            <div class="form-group">
+                                <label>В закупку (если статус Ждем запчасть):</label>
+                                <input type="text" id="parts-${t.rowIndex}" placeholder="Что купить?">
+                            </div>
+                            <div class="form-group">
+                                <label>Изменить статус ремонта</label>
+                                <select id="status-${t.rowIndex}">
+                                    <option value="${t.status || 'Новая'}">Текущий: ${t.status || 'Новая'}</option>
+                                    <option value="В работе">🔵 В работе</option>
+                                    <option value="Ждем запчасть">🔴 Ждем запчасть</option>
+                                    <option value="Ремонт на линии">🟠 Ремонт на линии</option>
+                                    <option value="Необоснованно">⚫ Необоснованно</option>
+                                    <option value="Готово">🟢 Готово</option>
+                                </select>
+                            </div>
+                            <button style="background:#34c759;" onclick="updateTicketByBoss(${t.rowIndex}, '${t.vehicle}')">💾 Сохранить в таблицу</button>
+                        `;
+                        container.appendChild(card);
+                    });
+                }).catch(() => {
+                    document.getElementById("boss-tickets-container").innerHTML = "<p style='text-align:center; color:red;'>Ошибка обработки строк. Проверьте запуск doPost/doGet.</p>";
+                });
+        }
+
+        // Начальник сохраняет изменения карточки
+        function updateTicketByBoss(rowIndex, vehicle) {
+            const sleasar = document.getElementById("sleasar-" + rowIndex).value;
+            const buyParts = document.getElementById("parts-" + rowIndex).value.trim();
+            const status = document.getElementById("status-" + rowIndex).value;
+           
+            const formData = "action=updateTicket&rowIndex=" + rowIndex + "&vehicle=" + encodeURIComponent(vehicle) + "&sleasar=" + encodeURIComponent(sleasar) + "&buyParts=" + encodeURIComponent(buyParts) + "&status=" + encodeURIComponent(status);
+            sendPost(formData, "Статус изменен! Данные внесены в таблицу и отправлены в ваши каналы.");
+        }
+
