@@ -116,7 +116,7 @@
             select.appendChild(option);
         });
 
-        // ФУНКЦИЯ ОТПРАВКИ
+      // Функция отправки заявки
         function submitMechanicTicket() {
             const vehicle = document.getElementById("mech-vehicle").value;
             const mileage = document.getElementById("mech-mileage").value.trim();
@@ -131,13 +131,17 @@
                 return;
             }
             
-            const payload = { action: "createTicket", vehicle: vehicle, mileage: mileage, description: desc };
+            // Кодируем данные в стандартный формат интернет-формы
+            const formData = "vehicle=" + encodeURIComponent(vehicle) + 
+                             "&mileage=" + encodeURIComponent(mileage) + 
+                             "&description=" + encodeURIComponent(desc);
 
             try {
                 var xhr = new XMLHttpRequest();
                 xhr.open("POST", WEB_APP_URL, true);
-                xhr.setRequestHeader("Content-Type", "text/plain");
-                xhr.send(JSON.stringify(payload));
+                // Устанавливаем тип контента как у обычной интернет-формы
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                xhr.send(formData);
             } catch(e) {}
 
             alert("Заявка принята и отправлена в Журнал ремонтов!");
