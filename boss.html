@@ -33,17 +33,29 @@
         // Сразу запускаем загрузку данных без лишних проверок ролей
         loadBossPanel();
 
-        function loadBossPanel() {
-            const container = document.getElementById("boss-tickets-container");
-            
-            fetch(WEB_APP_URL + "?action=getTickets")
-                .then(r => r.text())
-                .then(textData => {
-                    var tickets = JSON.parse(textData);
-                    container.innerHTML = "";
-                    if(!tickets || tickets.length === 0) { container.innerHTML = "<p style='text-align:center;'>Активных заявок в таблице пока нет.</p>"; return; }
-                    
-                    tickets.forEach(t => {
+       // Отдаем активные заявки для Начальника (Защищенный текстовый формат)
+  if (action === "getTickets") {
+    const sheetRepairs = ss.getSheetByName("Журнал ремонтов");
+    const data = sheetRepairs.getDataRange().getValues();
+    const tickets = [];
+    const startRow = Math.max(77, data.length - 25);
+    
+    for (let i = data.length - 1; i >= startRow; i--) {
+      if (!data[i] || data[i] === "") continue;
+      tickets.push({
+        rowIndex: i + 1,
+        date: data[i] ? String(data[i]) : "",        // A
+        vehicle: data[i] ? String(data[i]) : "",     // B
+        mileage: data[i] ? String(data[i]) : "",     // C
+        description: data[i] ? String(data[i]) : "", // D
+        sleasar: data[i] ? String(data[i]) : "",     // E
+        status: data[i] ? String(data[i]) : "Новая"  // J
+      });
+    }
+    // Возвращаем как TEXT, чтобы встроенный браузер Telegram не блокировал чтение
+    const output = ContentService.createTextOutput(JSON.stringify(tickets)).setMimeType(ContentService.MimeType.TEXT);
+    return output.addHeader("Access-Control-Allow-Origin", "*");
+  }
                         let card = document.createElement("div");
                         card.className = "card";
                         card.innerHTML = 
