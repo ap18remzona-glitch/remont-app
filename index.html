@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -20,14 +19,14 @@
 </head>
 <body>
 
-    <!-- ЭКРАН 1: ДЛЯ МЕХАНИКОВ (ПОДАЧА ЗАЯВКИ) -->
+    <!-- ЭКРАН МЕХАНИКА -->
     <div id="screen-mechanic" class="hidden">
         <div class="card">
             <h2>🚨 Создать заявку на ремонт</h2>
             <div class="form-group">
                 <label>Выберите машину (Автобаза)</label>
                 <select id="mech-vehicle">
-                    <option value="">-- Загрузка машин из вашей базы... --</option>
+                    <option value="">-- Загрузка списка машин... --</option>
                 </select>
             </div>
             <div class="form-group">
@@ -42,85 +41,80 @@
         </div>
     </div>
 
-    <!-- ЭКРАН 2: ДЛЯ НАЧАЛЬНИКА (УПРАВЛЕНИЕ СТАТУСАМИ) -->
+    <!-- ЭКРАН НАЧАЛЬНИКА -->
     <div id="screen-boss" class="hidden">
         <div class="card" style="background: #eef7ff; text-align: center;">
             <h3 style="margin: 0; color: #007aff; font-size: 15px;">Панель Управления Начальника</h3>
         </div>
-        <div id="boss-tickets-container">Загрузка активных ремонтов...</div>
+        <div id="boss-tickets-container">Загрузка списка ремонтов...</div>
     </div>
-
     <script>
         var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg) { tg.expand(); }
-       
+        
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyq-esynNPKfzfb-7yQNQMaaT9ljr3H0zn9HlG0xHIRzBmpT8MCHBISubv5UNIWDW6m/exec";
-        const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : "522983187";
+        const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : "522983187"; 
 
-        // ЗАПУСК И СОРТИРОВКА ПРАВ
         if (String(userId) === "522983187") {
             document.getElementById("screen-boss").classList.remove("hidden");
             loadBossPanel();
         } else {
             document.getElementById("screen-mechanic").classList.remove("hidden");
-            loadCarsDynamic(); // Загружаем машины напрямую из таблицы
+            loadCarsDynamic();
         }
 
-       // АВТОМАТИЧЕСКАЯ ЗАГРУЗКА ИЗ ВАШЕЙ ТАБЛИЦЫ «БАЗА МАШИН»
         function loadCarsDynamic() {
+            const select = document.getElementById("mech-vehicle");
             fetch(WEB_APP_URL + "?action=getCars")
-                .then(r => r.text()) // Читаем как безопасный текст для обхода CORS
+                .then(r => r.text())
                 .then(textData => {
-                    const cars = JSON.parse(textData);
-                    const select = document.getElementById("mech-vehicle");
+                    var cars = JSON.parse(textData);
                     select.innerHTML = '<option value="">-- Выберите машину --</option>';
                     if (cars && cars.length > 0) {
                         cars.forEach(c => {
                             let opt = document.createElement("option");
-                            let shortNumber = c.split(" ("); // Отрезаем модель для таблицы
+                            let shortNumber = c.split(" (");
                             opt.value = shortNumber[0]; 
                             opt.textContent = c; 
                             select.appendChild(opt);
                         });
                     }
                 }).catch(() => {
-                    // Резервный список если интернет на КПП отключился
-                    const fallback = ["AT 1683-5", "AP 6129-5", "AX 7671-5", "8314 MC-5", "BA 2721-5"];
-                    const select = document.getElementById("mech-vehicle");
-                    select.innerHTML = '<option value="">-- Ошибка сети. Выберите номер --</option>';
+                    const fallback = ["AT 1683-5", "AP 6129-5", "8314 MC-5", "BA 6903-5"];
+                    select.innerHTML = '<option value="">-- Выберите номер --</option>';
                     fallback.forEach(c => {
                         let opt = document.createElement("option"); opt.value = c; opt.textContent = c; select.appendChild(opt);
                     });
                 });
         }
+
         function submitMechanicTicket() {
             const vehicle = document.getElementById("mech-vehicle").value;
             const mileage = document.getElementById("mech-mileage").value.trim();
             const desc = document.getElementById("mech-desc").value.trim();
-            if (!vehicle || !desc) { alert("Заполните машину и неисправность!"); return; }
-           
+            if (!vehicle || !desc) { alert("Заполните поля!"); return; }
             const formData = "action=createTicket&vehicle=" + encodeURIComponent(vehicle) + "&mileage=" + encodeURIComponent(mileage) + "&description=" + encodeURIComponent(desc);
-            sendPost(formData, "Заявка добавлена в Журнал и отправлена в канал!");
+            sendPost(formData, "Заявка добавлена в Журнал!");
         }
 
-        // Загрузка последних строк таблицы для Начальника
         function loadBossPanel() {
+            const container = document.getElementById("boss-tickets-container");
             fetch(WEB_APP_URL + "?action=getTickets")
-                .then(r => r.json())
-                .then(tickets => {
-                    const container = document.getElementById("boss-tickets-container");
+                .then(r => r.text())
+                .then(textData => {
+                    var tickets = JSON.parse(textData);
                     container.innerHTML = "";
-                    if(!tickets || tickets.length === 0) { container.innerHTML = "<p style='text-align:center;'>Активных заявок в таблице пока нет.</p>"; return; }
-                   
+                    if(!tickets || tickets.length === 0) { container.innerHTML = "<p style='text-align:center;'>Активных заявок нет.</p>"; return; }
+                    
                     tickets.forEach(t => {
                         let card = document.createElement("div");
                         card.className = "card";
-                        card.innerHTML = `
+                        card.innerHTML = 
                             <div class="ticket-box">
                                 <b>🚚 Машина: ${t.vehicle}</b> <span style="float:right; font-size:12px; color:#666;">Строка: ${t.rowIndex}</span><br>
                                 <small>📅 ${t.date} | Пробег: ${t.mileage} км</small><br>
                                 <p style="margin:6px 0; font-size:14px; color:#222;">⚠️ Поломка: ${t.description}</p>
-                                <p style="margin:2px 0; font-size:13px; color:#444;">Текущий статус: <b>${t.status || 'Новая'}</b></p>
+                                <p style="margin:2px 0; font-size:13px; color:#444;">Статус: <b>${t.status || 'Новая'}</b></p>
                             </div>
                             <div class="form-group">
                                 <label>Вписать слесаря</label>
@@ -142,23 +136,28 @@
                                 </select>
                             </div>
                             <button style="background:#34c759;" onclick="updateTicketByBoss(${t.rowIndex}, '${t.vehicle}')">💾 Сохранить изменения</button>
-                        `;
+                        ;
                         container.appendChild(card);
                     });
-                }).catch(() => {
-                    document.getElementById("boss-tickets-container").innerHTML = "<p style='text-align:center; color:red;'>Ошибка загрузки данных. Проверьте публикации.</p>";
-                });
+                }).catch(() => { container.innerHTML = "<p style='text-align:center; color:red;'>Ошибка базы.</p>"; });
         }
 
         function updateTicketByBoss(rowIndex, vehicle) {
             const sleasar = document.getElementById("sleasar-" + rowIndex).value.trim();
             const buyParts = document.getElementById("parts-" + rowIndex).value.trim();
             const status = document.getElementById("status-" + rowIndex).value;
-           
             const formData = "action=updateTicket&rowIndex=" + rowIndex + "&vehicle=" + encodeURIComponent(vehicle) + "&sleasar=" + encodeURIComponent(sleasar) + "&buyParts=" + encodeURIComponent(buyParts) + "&status=" + encodeURIComponent(status);
-            sendPost(formData, "Статус изменен! Данные внесены в таблицу и отправлены в ваши каналы.");
+            sendPost(formData, "Статус изменен!");
         }
 
         function sendPost(formData, successMessage) {
             var xhr = new XMLHttpRequest();
-Serega
+            xhr.open("POST", WEB_APP_URL, true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhr.send(formData);
+            alert(successMessage);
+            if (tg) { tg.close(); }
+        }
+    </script>
+</body>
+</html>
