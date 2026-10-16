@@ -65,23 +65,56 @@
             document.getElementById("boss-panel").style.display = "block";
         }
 
-        // АВТОМАТИЧЕСКАЯ ЗАГРУЗКА МАШИН ПРИ СТАРТЕ
-        fetch(WEB_APP_URL)
-            .then(response => response.json())
-            .then(cars => {
-                const select = document.getElementById("mech-vehicle");
-                select.innerHTML = '<option value="">-- Выберите из списка --</option>';
-                cars.forEach(car => {
-                    // Отрезаем название модели для записи в таблицу (оставляем только номер до скобки)
-                    let shortNumber = car.split(" (")[0];
-                    let option = document.createElement("option");
-                    option.value = shortNumber;
-                    option.textContent = car;
-                    select.appendChild(option);
-                });
-            }).catch(err => {
-                document.getElementById("mech-vehicle").innerHTML = '<option value="">Ошибка загрузки базы машин</option>';
-            });
+       // БАЗА МАШИН ВШИТА НАПРЯМУЮ ДЛЯ ОБХОДА БЛОКИРОВОК СЕТИ
+        const cars = [
+            "AT 1683-5 (Маз-6516С9)",
+            "AP 6129-5 (Маз-241030)",
+            "AX 7671-5 (Маз-206047)",
+            "8314 MC-5 (Volkswagen Caddy)",
+            "BA 2721-5 (Паз-320405-04)",
+            "AC 1662-5 (Маз-103486)",
+            "BA 2724-5 (Паз-320405-04)",
+            "AX 7623-5 (Маз-203047)",
+            "AC 1296-5 (Маз-241030)",
+            "AC 4218-5 (Мерседес-Бенц Спринтер)",
+            "AC 1213-5 (Маз-103485)",
+            "AX 7624-5 (Маз-203047)",
+            "BA 2722-5 (Паз-320405-04)",
+            "BA 8695-5 (Golden Dragon)",
+            "9669 KX-5 (Skoda Super B)",
+            "BA 0686-5 (Паз-320405-04)",
+            "AP 6172-5 (Маз-241030)",
+            "BB 5320-5 (Неман-420434)",
+            "BB 5322-5 (Неман-420434)",
+            "BB 5342-5 (Неман-420434)",
+            "BB 5352-5 (Неман-420434)",
+            "BB 5363-5 (Неман-420434)",
+            "AX 7632-5 (Маз-203047)",
+            "AX 7672-5 (Маз-206047)",
+            "AT 1632-5 (Маз-103486)",
+            "AX 7625-5 (Маз-203047)",
+            "BA 6904-5 (Маз-203147)",
+            "AH 3584-5 (Маз-103485)",
+            "AT 7020-5 (Маз-6515B9)",
+            "AT 0868-5 (Неман-420224-511)",
+            "BA 2723-5 (Паз-320405-04)",
+            "BA 6903-5 (Маз-203147)",
+            "AP 6173-5 (Маз-241030)",
+            "BB 0390-5 (Маз-203147)",
+            "BB 0391-5 (Маз-203147)",
+            "AT 1625-5 (Неман-420224-511)"
+        ];
+
+        // Мгновенно заполняем выпадающий список на экране
+        const select = document.getElementById("mech-vehicle");
+        select.innerHTML = '<option value="">-- Выберите из списка --</option>';
+        cars.forEach(car => {
+            let shortNumber = car.split(" (")[0]; // Берем только чистый госномер без модели
+            let option = document.createElement("option");
+            option.value = shortNumber;
+            option.textContent = car;
+            select.appendChild(option);
+        });
 
         // ФУНКЦИЯ ОТПРАВКИ
         function submitMechanicTicket() {
